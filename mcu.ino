@@ -12,7 +12,7 @@ const int WL = 5;
 const int CL = 6;
 
 void setup() {
-  wdt_enable(WDTO_4S);
+  wdt_enable(WDTO_8S);
   pinMode(IPIN0, INPUT);
   pinMode(IPIN1, INPUT);
   pinMode(S1, INPUT);
@@ -23,10 +23,9 @@ void setup() {
   pinMode(IALARM,OUTPUT);
   pinMode(WL, OUTPUT);
   pinMode(CL, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(IPIN0), buzzerISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IPIN0), buzzerISR, RISING);
   attachInterrupt(digitalPinToInterrupt(IPIN1), lampTestISR, FALLING);
-  digitalWrite(ALARM, LOW);
-  digitalWrite(IALARM,LOW);
+  deactivateAlarms();
   digitalWrite(WL, HIGH);
   digitalWrite(CL, HIGH);
   delay(2000);
@@ -34,7 +33,7 @@ void setup() {
   digitalWrite(CL, LOW);
 }
 
-volatile byte enableAlarm = 0xF;
+volatile bool enableAlarm = true;
 volatile byte prev = 0;
 volatile byte stateCode = 0;
 volatile bool lampTest = false;
@@ -42,19 +41,26 @@ volatile long lastValidChange = 0;
 
 
 void loop() {
+  digitalWrite(LED_BUILTIN,HIGH);
   lampTestFunction();  
   long timeMillis = millis();
   stateCode =  (digitalRead(S1) << 1) | digitalRead(S0);
   stateCode ^= 0b11;
   
   if (prev != stateCode && (timeMillis - lastValidChange) > 3000 ) {
-    enableAlarm = 0xF;
+    enableAlarm = true;
     lastValidChange = millis();
   }
   int h = stateCode >> 1;
 
   bool clResult = h&0x01;
   bool wlResult = (stateCode & 0x1) && !clResult;
+
+  if((clResult  || wlResult) && enableAlarm){
+    activateAlarms();
+  } else {
+    deactivateAlarms();
+  }
 
   if(clResult){
     digitalWrite(CL, HIGH);  
@@ -69,32 +75,46 @@ void loop() {
   
   delay(150);
   
-  if(clResult){
+  if(clResult && enableAlarm){
     digitalWrite(CL, LOW);  
   }
-  if(wlResult){
+  if(wlResult && enableAlarm){
     digitalWrite(WL,LOW);  
   }
   
 
   prev = stateCode;
+  digitalWrite(LED_BUILTIN,LOW);
   delay(1000);
   wdt_reset();
 }
 
 void buzzerISR() {
-  enableAlarm = 0x0;
-  digitalWrite(ALARM, LOW);
-  digitalWrite(IALARM, LOW);
+  enableAlarm = false;
+  deactivateAlarms();
 }
 void lampTestISR(){
   lampTest = true;
 }
 
+void activateAlarms(){
+  setAlarms(LOW);
+}
+
+void deactivateAlarms(){
+  setAlarms(HIGH);
+}
+
+void setAlarms(byte b){
+  digitalWrite(ALARM, b);
+  digitalWrite(IALARM, b);
+}
+
 void lampTestFunction(){
-  byte pin = 0;
+  byte pin = digitalRead(IPIN1);
   long lastDebounce = millis();
-  while( lampTest){
+  
+  while(!pin&&lampTest){
     digitalWrite(WL,HIGH);
     digitalWrite(CL,HIGH);
     pin  = digitalRead(IPIN1);
