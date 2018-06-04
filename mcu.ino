@@ -98,7 +98,7 @@ void buzzerISR() {
   while(pin && (millis()-initDebounce)<thresholdMs){
     byte pin = digitalRead(IPIN0);
   }
-  if((millis()-initDebounce)>=thresholdMsll){
+  if((millis()-initDebounce)>=thresholdMs){
     enableAlarm = false;  
     deactivateAlarms();
   }
