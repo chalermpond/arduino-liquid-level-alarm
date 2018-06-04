@@ -19,13 +19,15 @@ void setup() {
   pinMode(S0, INPUT);
 
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(ALARM, OUTPUT);
+  pinMode(ALARM, OUTPUT); 
   pinMode(IALARM,OUTPUT);
   pinMode(WL, OUTPUT);
   pinMode(CL, OUTPUT);
+  deactivateAlarms();
+  
   attachInterrupt(digitalPinToInterrupt(IPIN0), buzzerISR, RISING);
   attachInterrupt(digitalPinToInterrupt(IPIN1), lampTestISR, FALLING);
-  deactivateAlarms();
+  
   digitalWrite(WL, HIGH);
   digitalWrite(CL, HIGH);
   delay(2000);
@@ -73,25 +75,33 @@ void loop() {
     digitalWrite(WL,LOW);  
   }
   
-  delay(150);
+  delay(250);
   
   if(clResult && enableAlarm){
     digitalWrite(CL, LOW);  
   }
-  if(wlResult && enableAlarm){
+  if(wlResult &&  enableAlarm){
     digitalWrite(WL,LOW);  
   }
   
 
   prev = stateCode;
   digitalWrite(LED_BUILTIN,LOW);
-  delay(1000);
+  delay(500);
   wdt_reset();
 }
 
 void buzzerISR() {
-  enableAlarm = false;
-  deactivateAlarms();
+  long initDebounce = millis();
+  byte pin = digitalRead(IPIN0);
+  long thresholdMs=100;
+  while(pin && (millis()-initDebounce)<thresholdMs){
+    byte pin = digitalRead(IPIN0);
+  }
+  if((millis()-initDebounce)>=thresholdMsll){
+    enableAlarm = false;  
+    deactivateAlarms();
+  }
 }
 void lampTestISR(){
   lampTest = true;
