@@ -13,7 +13,6 @@ const int CL = 6;
 
 void setup() {
   wdt_enable(WDTO_8S);
-  
   pinMode(IPIN0, INPUT);
   pinMode(IPIN1, INPUT);
   pinMode(S1, INPUT);
@@ -63,10 +62,12 @@ void loop() {
   } else if (stateCode!=prev){
     lastValidChange=time;
   }
+
   
 
   Serial.println(lampDriver(maintainLampDrive));
   Serial.println(time-lastValidChange);
+
 
   prev = stateCode;
   digitalWrite(LED_BUILTIN,LOW);
