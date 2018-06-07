@@ -13,6 +13,7 @@ const int CL = 6;
 
 void setup() {
   wdt_enable(WDTO_8S);
+
   pinMode(IPIN0, INPUT);
   pinMode(IPIN1, INPUT);
   pinMode(S1, INPUT);
@@ -35,72 +36,53 @@ void setup() {
   digitalWrite(CL, LOW);
 }
 
-volatile bool enableAlarm = true;
+bool enableAlarm = true;
+byte maintainLampDrive = 0x0;
 volatile byte prev = 0;
 volatile byte stateCode = 0;
 volatile bool lampTest = false;
-volatile long lastValidChange = 0;
+volatile bool enableBuzzerCheck = false;
+volatile unsigned long lastValidChange = 0;
+unsigned long lastDeactivateAlarm = 0;
+static int ignoreInputThreshold = 10000;
 
 
 void loop() {
+  wdt_reset();
   digitalWrite(LED_BUILTIN,HIGH);
-  lampTestFunction();  
-  long timeMillis = millis();
+  lampTestFunction(); 
+  buzzerCheck(); 
   stateCode =  (digitalRead(S1) << 1) | digitalRead(S0);
   stateCode ^= 0b11;
+  unsigned long time = millis();
   
-  if (prev != stateCode && (timeMillis - lastValidChange) > 3000 ) {
-    enableAlarm = true;
-    lastValidChange = millis();
+  if(stateCode==prev && time-lastValidChange > ignoreInputThreshold){
+    enableAlarm=true;
+    maintainLampDrive=stateCode;
+  } else if (stateCode!=prev){
+    lastValidChange=time;
   }
-  int h = stateCode >> 1;
-
-  bool clResult = h&0x01;
-  bool wlResult = (stateCode & 0x1) && !clResult;
-
-  if((clResult  || wlResult) && enableAlarm){
-    activateAlarms();
-  } else {
-    deactivateAlarms();
-  }
-
-  if(clResult){
-    digitalWrite(CL, HIGH);  
-  } else {
-    digitalWrite(CL, LOW);  
-  }
-  if(wlResult){
-    digitalWrite(WL,HIGH);  
-  } else {
-    digitalWrite(WL,LOW);  
-  }
-  
-  delay(250);
-  
-  if(clResult && enableAlarm){
-    digitalWrite(CL, LOW);  
-  }
-  if(wlResult &&  enableAlarm){
-    digitalWrite(WL,LOW);  
-  }
-  
-
   prev = stateCode;
   digitalWrite(LED_BUILTIN,LOW);
   delay(500);
-  wdt_reset();
 }
 
 void buzzerISR() {
-  long initDebounce = millis();
+  enableBuzzerCheck = true;  
+}
+
+void buzzerCheck(){
+  unsigned long initDebounce = millis();
   byte pin = digitalRead(IPIN0);
-  long thresholdMs=100;
+  unsigned long thresholdMs=100;
   while(pin && (millis()-initDebounce)<thresholdMs){
+    delay(25);
     byte pin = digitalRead(IPIN0);
   }
   if((millis()-initDebounce)>=thresholdMs){
     enableAlarm = false;  
     deactivateAlarms();
+    lastDeactivateAlarm = millis(); 
   }
 }
 void lampTestISR(){
@@ -108,11 +90,11 @@ void lampTestISR(){
 }
 
 void activateAlarms(){
-  setAlarms(LOW);
+  setAlarms(HIGH); 
 }
 
 void deactivateAlarms(){
-  setAlarms(HIGH);
+  setAlarms(LOW);
 }
 
 void setAlarms(byte b){
@@ -133,5 +115,45 @@ void lampTestFunction(){
     }
   }
 
+}
+
+bool lampDriver(bool maintainLampDrive){
+  byte localStateCode = maintainLampDrive;
+  
+  int h = localStateCode >> 1;
+
+  bool clResult = h&0x01;
+  bool wlResult = (localStateCode & 0x1) && !clResult;
+  
+  if((clResult  || wlResult) && enableAlarm){
+    activateAlarms(); 
+  } else {
+    deactivateAlarms();
+  }
+
+  
+
+  if(clResult){
+    digitalWrite(CL, HIGH);  
+  } else {
+    digitalWrite(CL, LOW);  
+  }
+  if(wlResult){
+    digitalWrite(WL,HIGH);  
+  } else {
+    digitalWrite(WL,LOW);  
+  }
+  
+  delay(250);
+  
+  if(clResult && enableAlarm){
+    digitalWrite(CL, LOW);  
+  }
+  if(wlResult &&  enableAlarm){
+    digitalWrite(WL,LOW);  
+  }
+
+  return clResult || wlResult;
+  
 }
 
