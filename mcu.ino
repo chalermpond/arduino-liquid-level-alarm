@@ -33,60 +33,60 @@ void setup() {
   delay(2000);
   digitalWrite(WL, LOW);
   digitalWrite(CL, LOW);
+  Serial.begin(9600);
 }
 
-volatile bool enableAlarm = true;
+volatile bool enableAlarm = false;
 volatile byte prev = 0;
 volatile byte stateCode = 0;
 volatile bool lampTest = false;
-volatile long lastValidChange = 0;
-
+volatile unsigned long lastValidChange = 0;
+unsigned long lastDeactivateAlarm = 0;
+unsigned long ignoreInputThreshold = 5000;
+byte previousMaintainLamp = 0x0;
+byte maintainLampDrive = 0x0;
+bool alarmLocked = false;
 
 void loop() {
   digitalWrite(LED_BUILTIN,HIGH);
   lampTestFunction();
   silentFunction();  
-  long timeMillis = millis();
+  unsigned long timeMillis = millis();
   stateCode =  (digitalRead(S1) << 1) | digitalRead(S0);
   stateCode ^= 0b11;
-  
-  if (prev != stateCode && (timeMillis - lastValidChange) > 3000 ) {
-    enableAlarm = true;
-    lastValidChange = millis();
+ 
+
+  if(stateCode==prev && timeMillis-lastValidChange > ignoreInputThreshold){
+    maintainLampDrive=stateCode;
+  } else if (stateCode!=prev){
+    lastValidChange=timeMillis;
   }
-  int h = stateCode >> 1;
+
+  if(previousMaintainLamp!=maintainLampDrive){
+    enableAlarm = true;
+  }
+
+  Serial.print(previousMaintainLamp);
+  Serial.print(maintainLampDrive);
+  Serial.println(enableAlarm);
+  
+  
+
+
+  int h = maintainLampDrive >> 1;
 
   bool clResult = h&0x01;
-  bool wlResult = (stateCode & 0x1) && !clResult;
+  bool wlResult = (maintainLampDrive & 0x1) && !clResult;
 
-  if((clResult  || wlResult) && enableAlarm){
+  if((clResult  || wlResult) && enableAlarm ){
     activateAlarms();
   } else {
     deactivateAlarms();
   }
-
-  if(clResult){
-    digitalWrite(CL, HIGH);  
-  } else {
-    digitalWrite(CL, LOW);  
-  }
-  if(wlResult){
-    digitalWrite(WL,HIGH);  
-  } else {
-    digitalWrite(WL,LOW);  
-  }
   
-  delay(250);
-  
-  if(clResult && enableAlarm){
-    digitalWrite(CL, LOW);  
-  }
-  if(wlResult &&  enableAlarm){
-    digitalWrite(WL,LOW);  
-  }
-  
-
+  lampDriver(maintainLampDrive);
   prev = stateCode;
+  previousMaintainLamp = maintainLampDrive;
   digitalWrite(LED_BUILTIN,LOW);
   delay(250);
   wdt_reset();
@@ -149,4 +149,34 @@ void lampTestFunction(){
   }
 
 }
+
+void lampDriver(byte state){
+  int h = state >> 1;
+
+  bool clResult = h&0x01;
+  bool wlResult = (state & 0x1) && !clResult;
+
+  if(clResult){
+    digitalWrite(CL, HIGH);  
+  } else {
+    digitalWrite(CL, LOW);  
+  }
+  if(wlResult){
+    digitalWrite(WL,HIGH);  
+  } else {
+    digitalWrite(WL,LOW);  
+  }
+  
+  delay(250);
+  
+  if(clResult && enableAlarm){
+    digitalWrite(CL, LOW);  
+  }
+  if(wlResult &&  enableAlarm){
+    digitalWrite(WL,LOW);  
+  }
+  
+  
+}
+
 
