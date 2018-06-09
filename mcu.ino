@@ -108,11 +108,11 @@ void lampTestISR(){
 }
 
 void activateAlarms(){
-  setAlarms(LOW);
+  setAlarms(HIGH);
 }
 
 void deactivateAlarms(){
-  setAlarms(HIGH);
+  setAlarms(LOW);
 }
 
 void setAlarms(byte b){
