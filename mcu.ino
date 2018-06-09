@@ -25,7 +25,7 @@ void setup() {
   pinMode(CL, OUTPUT);
   deactivateAlarms();
   
-  attachInterrupt(digitalPinToInterrupt(IPIN0), buzzerISR, RISING);
+  //attachInterrupt(digitalPinToInterrupt(IPIN0), buzzerISR, RISING);
   attachInterrupt(digitalPinToInterrupt(IPIN1), lampTestISR, FALLING);
   
   digitalWrite(WL, HIGH);
@@ -44,7 +44,8 @@ volatile long lastValidChange = 0;
 
 void loop() {
   digitalWrite(LED_BUILTIN,HIGH);
-  lampTestFunction();  
+  lampTestFunction();
+  silentFunction();  
   long timeMillis = millis();
   stateCode =  (digitalRead(S1) << 1) | digitalRead(S0);
   stateCode ^= 0b11;
@@ -87,7 +88,7 @@ void loop() {
 
   prev = stateCode;
   digitalWrite(LED_BUILTIN,LOW);
-  delay(500);
+  delay(250);
   wdt_reset();
 }
 
@@ -103,6 +104,20 @@ void buzzerISR() {
     deactivateAlarms();
   }
 }
+
+void silentFunction(){
+  long initDebounce = millis();
+  byte pin = digitalRead(IPIN0);
+  long thresholdMs=50;
+  while(pin && (millis()-initDebounce)<thresholdMs){
+    byte pin = digitalRead(IPIN0);
+  }
+  if((millis()-initDebounce)>=thresholdMs){
+    enableAlarm = false;  
+    deactivateAlarms();
+  }
+}
+
 void lampTestISR(){
   lampTest = true;
 }
