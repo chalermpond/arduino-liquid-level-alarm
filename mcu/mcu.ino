@@ -42,7 +42,7 @@ volatile byte stateCode = 0;
 volatile bool lampTest = false;
 volatile unsigned long lastValidChange = 0;
 unsigned long lastDeactivateAlarm = 0;
-unsigned long ignoreInputThreshold = 30000;
+unsigned long ignoreInputThreshold = 30000; // 30 x 1000 ms = 30 seconds delay
 byte previousMaintainLamp = 0x0;
 byte maintainLampDrive = 0x0;
 bool alarmLocked = false;
