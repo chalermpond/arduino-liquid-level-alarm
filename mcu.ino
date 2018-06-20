@@ -42,7 +42,7 @@ volatile byte stateCode = 0;
 volatile bool lampTest = false;
 volatile unsigned long lastValidChange = 0;
 unsigned long lastDeactivateAlarm = 0;
-unsigned long ignoreInputThreshold = 5000;
+unsigned long ignoreInputThreshold = 30000;
 byte previousMaintainLamp = 0x0;
 byte maintainLampDrive = 0x0;
 bool alarmLocked = false;
@@ -53,7 +53,7 @@ void loop() {
   silentFunction();  
   unsigned long timeMillis = millis();
   stateCode =  (digitalRead(S1) << 1) | digitalRead(S0);
-  stateCode ^= 0b11;
+  //stateCode ^= 0b11;
  
 
   if(stateCode==prev && timeMillis-lastValidChange > ignoreInputThreshold){
@@ -68,7 +68,8 @@ void loop() {
 
   Serial.print(previousMaintainLamp);
   Serial.print(maintainLampDrive);
-  Serial.println(enableAlarm);
+  Serial.print(enableAlarm);
+  Serial.println(timeMillis-lastValidChange);
   
   
 
@@ -142,6 +143,7 @@ void lampTestFunction(){
   while(!pin&&lampTest){
     digitalWrite(WL,HIGH);
     digitalWrite(CL,HIGH);
+    activateAlarms();
     pin  = digitalRead(IPIN1);
     if(pin && (millis()-lastDebounce) > 50){
       lampTest = false;
@@ -154,7 +156,7 @@ void lampDriver(byte state){
   int h = state >> 1;
 
   bool clResult = h&0x01;
-  bool wlResult = (state & 0x1) && !clResult;
+  bool wlResult = (state & 0x1);// && !clResult;
 
   if(clResult){
     digitalWrite(CL, HIGH);  
@@ -172,7 +174,7 @@ void lampDriver(byte state){
   if(clResult && enableAlarm){
     digitalWrite(CL, LOW);  
   }
-  if(wlResult &&  enableAlarm){
+  if(wlResult &&!clResult  &&  enableAlarm){
     digitalWrite(WL,LOW);  
   }
   
