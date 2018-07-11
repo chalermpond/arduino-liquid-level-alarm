@@ -36,17 +36,20 @@ void setup() {
   Serial.begin(9600);
 }
 
+// System variables
 volatile bool enableAlarm = false;
 volatile byte prev = 0;
 volatile byte stateCode = 0;
 volatile bool lampTest = false;
 volatile unsigned long lastValidChange = 0;
 unsigned long lastDeactivateAlarm = 0;
-unsigned long ignoreInputThreshold = 30000; // 30 x 1000 ms = 30 seconds delay
+unsigned long ignoreInputThreshold = 5*1000; // 5 x 1000 ms = 5 seconds delay
 byte previousMaintainLamp = 0x0;
 byte maintainLampDrive = 0x0;
 bool alarmLocked = false;
 
+
+// One-time setup
 void loop() {
   digitalWrite(LED_BUILTIN,HIGH);
   lampTestFunction();
@@ -62,7 +65,7 @@ void loop() {
     lastValidChange=timeMillis;
   }
 
-  if(previousMaintainLamp!=maintainLampDrive){
+  if(previousMaintainLamp!=maintainLampDrive && !isDecreasing(maintainLampDrive,previousMaintainLamp)){
     enableAlarm = true;
   }
 
@@ -179,6 +182,10 @@ void lampDriver(byte state){
   }
   
   
+}
+
+bool isDecreasing(byte current,byte previous){
+  return current < previous;
 }
 
 
